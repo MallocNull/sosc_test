@@ -27,7 +27,7 @@ GLint shader_attr(const shader_t*, int);
 
 shader_t* shader_active();
 void shader_start(shader_t*);
-void shader_stop(shader_t*);
+void shader_stop();
 
 void shader_destroy(shader_t*);
 

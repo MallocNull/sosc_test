@@ -50,10 +50,11 @@ char* file_read(const char* file) {
     size = ftell(fp);
     rewind(fp);
 
-    content = malloc(sizeof(char) * size);
+    content = malloc(sizeof(char) * size + 1);
     if(content == NULL)
         return NULL;
 
+    content[size] = '\0';
     fread(content, 1, size, fp);
     fclose(fp);
 

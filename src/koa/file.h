@@ -8,7 +8,8 @@
 #include "koa/thread.h"
 #include "koa/time.h"
 
-#define __STDERR err_ptr()
+//#define __STDERR err_ptr()
+#define __STDERR stdout
 
 FILE* err_ptr(void);
 void err_out(const char*);

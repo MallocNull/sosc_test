@@ -206,6 +206,11 @@ int main(int argc, char* argv[]) {
 
     fclose(fpi);
 
+    if(face_cnt == 0) {
+        printf("OBJ file must have faces!");
+        return -1;
+    }
+
     uint8_t magic[] = {0xDE, 0xAF, 0xB0, 0x0B};
     fwrite(magic, 1, 4, fpo);
 

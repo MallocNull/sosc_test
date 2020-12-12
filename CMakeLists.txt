@@ -28,8 +28,12 @@ target_link_libraries(ogl_test
     ${GLEW_LIBRARIES}
 )
 
+if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+    target_link_libraries(ogl_test m)
+endif()
+
 #TODO replace this with something that runs on build
-file(COPY src/data DESTINATION ./)
-file(COPY src/shaders DESTINATION ./)
+#file(COPY src/data DESTINATION ./)
+#file(COPY src/shaders DESTINATION ./)
 
 add_executable(rbm_gen rbm/main.c)

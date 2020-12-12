@@ -128,7 +128,7 @@ void shader_start(shader_t* shader) {
     _active = shader;
 }
 
-void shader_stop(shader_t* shader) {
+void shader_stop() {
     glUseProgram(0);
     _active = NULL;
 }
