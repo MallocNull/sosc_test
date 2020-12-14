@@ -8,24 +8,6 @@ typedef struct {
     uint32_t data[3][3];
 } _tri_t;
 
-uint8_t* _ord(uint8_t* buf, int length) {
-    static int end_chk = -1;
-    if(end_chk == -1) {
-        uint16_t chk = 0xB00B;
-        end_chk = ((uint8_t*)&chk)[0] == 0x0B;
-    }
-
-    if(end_chk)
-        return buf;
-
-    uint8_t tmp[8] = { 0 };
-    for(int i = 0; i < length; ++i)
-        tmp[i] = buf[length - i - 1];
-    memcpy(buf, tmp, length);
-
-    return buf;
-}
-
 int _populate_pts
     (_pt_t* data, FILE* fp, uint32_t length, int width)
 {
@@ -38,7 +20,7 @@ int _populate_pts
             if(chk != 4)
                 return 0;
 
-            data[i].data[j] = *(float*)_ord(buffer, 4);
+            data[i].data[j] = *(float*)ltoh(buffer, 4);
         }
     }
 
@@ -60,7 +42,7 @@ int _populate_faces
             if(chk != length)
                 return 0;
 
-            data[at].data[i][j] = *(uint32_t *) _ord(buffer, 4);
+            data[at].data[i][j] = *(uint32_t *) ltoh(buffer, 4);
         }
     }
 
@@ -86,7 +68,7 @@ mesh_t* mesh_load(const char* file) {
 
     for(int i = 0; i < 4; ++i) {
         fread(buffer, 1, 4, fp);
-        counts[i] = *(uint32_t*)_ord(buffer, 4);
+        counts[i] = *(uint32_t*)ltoh(buffer, 4);
     }
 
     if(feof(fp) || counts[VERT_CNT] == 0 || counts[FACE_CNT] == 0) {

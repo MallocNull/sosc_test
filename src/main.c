@@ -1,11 +1,11 @@
 #include <SDL.h>
 #include <GL/glew.h>
 #include <SDL_opengl.h>
+#include <cglm/cglm.h>
 #include <GL/glu.h>
+
 #include <stdio.h>
 #include <assert.h>
-
-#include <cglm/cglm.h>
 
 #include "koa/file.h"
 #include "okuu/mesh.h"
@@ -17,6 +17,7 @@
 struct {
     SDL_Window* window;
     SDL_GLContext ctx;
+    const uint8_t* keys;
     int mode, running;
 
     mesh_t* monkey;
@@ -40,7 +41,7 @@ int main(int argc, char* argv[]) {
     if(init() < 0)
         return -1;
 
-    _g.monkey = mesh_load("data/monkey.rbm");
+    _g.monkey = mesh_load("data/player.rbm");
 
     _s_def.shader = shader_create("default");
     shader_source(_s_def.shader, 2,
@@ -51,6 +52,7 @@ int main(int argc, char* argv[]) {
         "model", "view", "projection"
     );
 
+    _g.keys = SDL_GetKeyboardState(NULL);
     _g.running = 1;
     while(_g.running)
         run();
@@ -61,22 +63,13 @@ int main(int argc, char* argv[]) {
 
 void run() {
     static mat4 model, view, projection;
+    static float rot_up = 45, rot_around = 45;
 
     static int init = 1;
     if(init) {
-        //glm_translate_make(model, (vec3){ 0.0f, 0.f, -3.f });
-        //glm_rotate(model, glm_rad(180), (vec3){0.f, 1.f, 0.f});
-        glm_rotate_make(model, glm_rad(180), (vec3){ 0.f, 1.f, 0.f });
-        //glm_mat4_identity(model);
+        glm_rotate_make(model, glm_rad(90), (vec3){ 0.f, -1.f, 0.f });
 
-        //glm_mat4_identity(view);
-
-        glm_lookat(
-            (vec3){3.f, 3.f, 3.f},
-            (vec3){0.f, 0.f, 0.f},
-            (vec3){0.f, 1.f, 0.f},
-            view
-        );
+        glm_mat4_identity(view);
 
         glm_perspective(
             glm_rad(45),
@@ -84,11 +77,6 @@ void run() {
             0.1f, 10.f,
             projection
         );
-
-        /*glm_perspective_default(
-            (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT,
-            projection
-        );*/
 
         shader_start(_s_def.shader); {
             glUniformMatrix4fv(_ATTR(DEF_MODEL), 1, GL_FALSE, (float*)model);
@@ -103,7 +91,21 @@ void run() {
     glClearColor(0.f, 0.f, 0.5f, 0.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    float radius = 2.f + 2.f * (rot_up / 90.f);
+    glm_lookat(
+        (vec3){
+            cos(glm_rad(rot_up)) * radius * cos(glm_rad(rot_around)),
+            radius * sin(glm_rad(rot_up)),
+            cos(glm_rad(rot_up)) * radius * sin(glm_rad(rot_around))
+        },
+        (vec3){0.f, 0.f, 0.f},
+        (vec3){0.f, 1.f, 0.f},
+        view
+    );
+
     shader_start(_s_def.shader); {
+        glUniformMatrix4fv(_ATTR(DEF_VIEW), 1, GL_FALSE, (float*)view);
+
         mesh_bind(_g.monkey);
         mesh_render(_g.monkey);
         mesh_unbind();
@@ -111,26 +113,34 @@ void run() {
 
     SDL_GL_SwapWindow(_g.window);
 
+    SDL_PumpEvents();
+
+    if(_g.keys[SDL_SCANCODE_ESCAPE])
+        _g.running = 0;
+    if(_g.keys[SDL_SCANCODE_F]) {
+        _g.mode = !_g.mode;
+        SDL_SetWindowFullscreen(
+            _g.window,
+            _g.mode == 0
+            ? 0
+            : SDL_WINDOW_FULLSCREEN
+        );
+    }
+
+    if(_g.keys[SDL_SCANCODE_UP])
+        rot_up = glm_min(89.f, rot_up + 1.5f);
+    else if(_g.keys[SDL_SCANCODE_DOWN])
+        rot_up = glm_max(0.f, rot_up - 1.5f);
+
+    if(_g.keys[SDL_SCANCODE_RIGHT])
+        rot_around -= 2.f;
+    else if(_g.keys[SDL_SCANCODE_LEFT])
+        rot_around += 2.f;
+
     SDL_Event ev;
     while(SDL_PollEvent(&ev)) {
-        if(ev.type == SDL_KEYDOWN) {
-            switch(ev.key.keysym.sym) {
-                case SDLK_ESCAPE:
-                    _g.running = 0;
-                    break;
-                case 'f':
-                    _g.mode = !_g.mode;
-                    SDL_SetWindowFullscreen(
-                        _g.window,
-                        _g.mode == 0
-                        ? 0
-                        : SDL_WINDOW_FULLSCREEN
-                    );
-                    break;
-            }
-        } else if(ev.type == SDL_QUIT) {
+        if(ev.type == SDL_QUIT)
             _g.running = 0;
-        }
     }
 }
 
