@@ -42,6 +42,7 @@ bmp_t* bmp_load(const char*);
 bmp_t* bmp_load_chunk(const char*, int, int, int, int);
 int bmp_reload_chunk(bmp_t*, int, int, int, int);
 int bmp_load_metadata(const char*, bmp_meta_t*);
+void bmp_discard_pixels(bmp_t*);
 void bmp_unload(bmp_t*);
 
 #endif

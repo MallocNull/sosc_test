@@ -61,12 +61,6 @@ char* file_read(const char* file) {
     return content;
 }
 
-int _bmp_load_metadata(FILE* fp, bmp_meta_t* out) {
-
-
-    return 1;
-}
-
 int bmp_load_metadata(const char* file, bmp_meta_t* out) {
     FILE* fp = fopen(file, "rb");
     if(fp == NULL)
@@ -146,11 +140,8 @@ int bmp_reload_chunk(bmp_t* bmp, int x, int y, int width, int height) {
         return NULL;
     }
 
-    if(bmp->pixels != NULL) {
-        for(int i = 0; i < bmp->height; ++i)
-            free(bmp->pixels[i]);
-        free(bmp->pixels);
-    }
+    if(bmp->pixels != NULL)
+        bmp_discard_pixels(bmp);
 
     width = (width <= 0 || (x + width > data->width))
             ? data->width - x
@@ -188,7 +179,18 @@ int bmp_reload_chunk(bmp_t* bmp, int x, int y, int width, int height) {
     return 1;
 }
 
+void bmp_discard_pixels(bmp_t* bmp) {
+    if(bmp->pixels == NULL)
+        return;
+
+    for(int i = 0; i < bmp->height; ++i)
+        free(bmp->pixels[i]);
+    free(bmp->pixels);
+    bmp->pixels = NULL;
+}
+
 void bmp_unload(bmp_t* bmp) {
+    bmp_discard_pixels(bmp);
     free(bmp->pixels);
     free(bmp);
 }

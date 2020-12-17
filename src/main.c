@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     if(init() < 0)
         return -1;
 
-    _g.monkey = mesh_load("data/player.rbm");
+    _g.monkey = mesh_load("data/cube.rbm");
 
     _s_def.shader = shader_create("default");
     shader_source(_s_def.shader, 2,
@@ -91,7 +91,7 @@ void run() {
     glClearColor(0.f, 0.f, 0.5f, 0.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    float radius = 2.f + 2.f * (rot_up / 90.f);
+    float radius = 4.f + 4.f * (rot_up / 90.f);
     glm_lookat(
         (vec3){
             cos(glm_rad(rot_up)) * radius * cos(glm_rad(rot_around)),
