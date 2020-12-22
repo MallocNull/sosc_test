@@ -5,11 +5,30 @@ shader_t* _active = NULL;
 shader_t* shader_create(const char* name) {
     shader_t* shader = malloc(sizeof(shader_t));
     shader->name = name;
+    shader->layout = NULL;
+    shader->layout_cnt = 0;
     shader->attribs = NULL;
     shader->program = glCreateProgram();
     shader->loaded = 0;
 
     return shader;
+}
+
+int shader_layout(shader_t* shader, int count, ...) {
+    if(shader->loaded)
+        return -1;
+    if(shader->layout != NULL)
+        free(shader->layout);
+    shader->layout = malloc(sizeof(layout_name_t) * count);
+    shader->layout_cnt = count;
+
+    va_list args;
+    va_start(args, count);
+    for(int i = 0; i < count; ++i)
+        strcpy(shader->layout[i], va_arg(args, const char*));
+    va_end(args);
+
+    return 0;
 }
 
 int shader_source(shader_t* shader, int files, ...) {
@@ -65,6 +84,12 @@ int shader_source(shader_t* shader, int files, ...) {
 
     if(failed)
         return -1;
+
+    if(shader->layout != NULL) {
+        for(int i = 0; i < shader->layout_cnt; ++i)
+            glBindAttribLocation(shader->program, i, shader->layout[i]);
+        free(shader->layout);
+    }
 
     glLinkProgram(shader->program);
     glGetProgramiv(shader->program, GL_LINK_STATUS, &err);

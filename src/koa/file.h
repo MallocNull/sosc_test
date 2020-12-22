@@ -21,10 +21,6 @@ char* file_read(const char*);
 // BEGIN BMP LOADING FUNCTIONS
 
 typedef struct {
-    uint8_t r, g, b;
-} pixel_t;
-
-typedef struct {
     char file[4096];
     uint32_t width, height, size,
              header_size, body_size;
@@ -35,7 +31,7 @@ typedef struct {
     bmp_meta_t data;
 
     uint32_t width, height;
-    pixel_t** pixels;
+    color_t** pixels;
 } bmp_t;
 
 bmp_t* bmp_load(const char*);

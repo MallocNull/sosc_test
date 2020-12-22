@@ -14,12 +14,12 @@
 
 #include "koa/file.h"
 
-#define CHUNK_SIZE 32
-#define TERR_BUFFS 3
+#define CHUNK_SIZE 100
+#define TERR_BUFFS 4
 
 typedef struct {
     bmp_t* bmps[2];
-    int center_x, center_y;
+    int center_x, center_y, tri_cnt;
     float heights[CHUNK_SIZE][CHUNK_SIZE];
     GLuint buffers[TERR_BUFFS], vao;
 } terrain_t;

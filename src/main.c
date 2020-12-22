@@ -10,6 +10,7 @@
 #include "koa/file.h"
 #include "okuu/mesh.h"
 #include "okuu/shader.h"
+#include "okuu/terrain.h"
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
@@ -21,6 +22,7 @@ struct {
     int mode, running;
 
     mesh_t* monkey;
+    terrain_t* map;
 } _g;
 
 struct {
@@ -41,9 +43,18 @@ int main(int argc, char* argv[]) {
     if(init() < 0)
         return -1;
 
-    _g.monkey = mesh_load("data/cube.rbm");
+    _g.monkey = mesh_load("data/player.rbm");
+
+    _g.map = terrain_load(
+        "data/map-heights.bmp",
+        "data/map-colors.bmp",
+        10, 10
+    );
 
     _s_def.shader = shader_create("default");
+    shader_layout(_s_def.shader, 4,
+        "vertex", "texuv", "normal", "color"
+    );
     shader_source(_s_def.shader, 2,
         "shaders/test.vert", GL_VERTEX_SHADER,
         "shaders/test.frag", GL_FRAGMENT_SHADER
@@ -62,19 +73,22 @@ int main(int argc, char* argv[]) {
 }
 
 void run() {
-    static mat4 model, view, projection;
+    static mat4 model, map, view, projection;
     static float rot_up = 45, rot_around = 45;
+    static float x = 0, y = 0;
 
     static int init = 1;
     if(init) {
-        glm_rotate_make(model, glm_rad(90), (vec3){ 0.f, -1.f, 0.f });
+        //glm_rotate_make(model, glm_rad(90), (vec3){ 0.f, -1.f, 0.f });
+        glm_mat4_identity(model);
+        glm_mat4_identity(map);
 
         glm_mat4_identity(view);
 
         glm_perspective(
-            glm_rad(45),
+            glm_rad(55),
             (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT,
-            0.1f, 10.f,
+            0.1f, 100.f,
             projection
         );
 
@@ -106,9 +120,16 @@ void run() {
     shader_start(_s_def.shader); {
         glUniformMatrix4fv(_ATTR(DEF_VIEW), 1, GL_FALSE, (float*)view);
 
-        mesh_bind(_g.monkey);
+        /*mesh_bind(_g.monkey);
         mesh_render(_g.monkey);
-        mesh_unbind();
+        mesh_unbind();*/
+        glm_translate_make(model, (vec3){-x, -(_g.map->heights[(int)y][(int)x] + 2.f), -y});
+        glm_mat4_mul(model, map, model);
+        glUniformMatrix4fv(_ATTR(DEF_MODEL), 1, GL_FALSE, (float*)model);
+
+        glBindVertexArray(_g.map->vao);
+        glDrawArrays(GL_TRIANGLES, 0, _g.map->tri_cnt * 3);
+        glBindVertexArray(0);
     } shader_stop();
 
     SDL_GL_SwapWindow(_g.window);
@@ -136,6 +157,21 @@ void run() {
         rot_around -= 2.f;
     else if(_g.keys[SDL_SCANCODE_LEFT])
         rot_around += 2.f;
+
+    if(_g.keys[SDL_SCANCODE_W])
+        x += .25;
+    else if(_g.keys[SDL_SCANCODE_S])
+        x -= .25;
+
+    if(_g.keys[SDL_SCANCODE_D])
+        y += .25;
+    else if(_g.keys[SDL_SCANCODE_A])
+        y -= .25;
+
+    if(_g.keys[SDL_SCANCODE_SPACE]) {
+        terrain_move(_g.map, x, y);
+        glm_translate_make(map, (vec3){__MAX(0, x - CHUNK_SIZE / 2), 0, __MAX(0, y - CHUNK_SIZE / 2)});
+    }
 
     SDL_Event ev;
     while(SDL_PollEvent(&ev)) {

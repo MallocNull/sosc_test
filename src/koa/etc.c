@@ -1,5 +1,17 @@
 #include "etc.h"
 
+int color_eq(color_t a, color_t b) {
+    return color_eqp(&a, &b);
+}
+
+int color_eqp(const color_t* a, const color_t* b) {
+    return
+        (a->r == b->r) &&
+        (a->g == b->g) &&
+        (a->b == b->b) &&
+        (a->a == b->a);
+}
+
 void mfree(int n, ...) {
     va_list args;
     va_start(args, n);

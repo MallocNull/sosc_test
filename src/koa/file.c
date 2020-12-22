@@ -137,7 +137,7 @@ int bmp_reload_chunk(bmp_t* bmp, int x, int y, int width, int height) {
 
     if(x > data->width || y > data->height) {
         fclose(fp);
-        return NULL;
+        return 0;
     }
 
     if(bmp->pixels != NULL)
@@ -152,9 +152,9 @@ int bmp_reload_chunk(bmp_t* bmp, int x, int y, int width, int height) {
 
     bmp->width = width;
     bmp->height = height;
-    bmp->pixels = malloc(sizeof(pixel_t*) * height);
+    bmp->pixels = malloc(sizeof(color_t*) * height);
     for(int i = 0; i < height; ++i)
-        bmp->pixels[i] = malloc(sizeof(pixel_t) * width);
+        bmp->pixels[i] = malloc(sizeof(color_t) * width);
 
     uint8_t buffer[4];
     for(int ay = 0; ay < height; ++ay) {
@@ -168,10 +168,11 @@ int bmp_reload_chunk(bmp_t* bmp, int x, int y, int width, int height) {
         for(int ax = 0; ax < width; ++ax) {
             fread(buffer, 1, data->bytepp, fp);
 
-            pixel_t* px = &bmp->pixels[ay][ax];
+            color_t* px = &bmp->pixels[ay][ax];
             px->b = buffer[0];
             px->g = buffer[1];
             px->r = buffer[2];
+            px->a = 0xFF;
         }
     }
 

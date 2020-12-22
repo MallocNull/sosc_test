@@ -35,8 +35,10 @@ int _populate_faces
 
     for(int i = 0; i < 3; ++i) {
         for(int j = 0; j < 3; ++j) {
-            if((flags & (1 << j)) == 0)
+            if((flags & (1 << j)) == 0) {
+                data[at].data[i][j] = 0;
                 continue;
+            }
 
             chk = fread(buffer, 1, length, fp);
             if(chk != length)
@@ -127,7 +129,7 @@ mesh_t* mesh_load(const char* file) {
             }
 
             memcpy(
-                &verts_asm[i*3*3 + 3*j],
+                &verts_asm[i * 3 *3 + 3 * j],
                 verts[faces[i].data[j][0] - 1].data,
                 3 * sizeof(float)
             );
