@@ -1,15 +1,11 @@
 #include "etc.h"
 
-int color_eq(color_t a, color_t b) {
-    return color_eqp(&a, &b);
+int color_eq(const color_t a, const color_t b) {
+    return color_eqp(a, b);
 }
 
-int color_eqp(const color_t* a, const color_t* b) {
-    return
-        (a->r == b->r) &&
-        (a->g == b->g) &&
-        (a->b == b->b) &&
-        (a->a == b->a);
+int color_eqp(const color_t a, const color_t b) {
+    return memcmp(a, b, 4) == 0;
 }
 
 void mfree(int n, ...) {

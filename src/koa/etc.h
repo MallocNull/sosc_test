@@ -9,12 +9,15 @@
 #define __MIN(A, B) ((A) < (B) ? (A) : (B))
 #define __MAX(A, B) ((A) > (B) ? (A) : (B))
 
-typedef struct {
-    uint8_t r, g, b, a;
-} color_t;
+#define _R_ 0
+#define _G_ 1
+#define _B_ 2
+#define _A_ 3
 
-int color_eq(color_t, color_t);
-int color_eqp(const color_t*, const color_t*);
+typedef uint8_t color_t[4];
+
+int color_eq(const color_t, const color_t);
+int color_eqp(const color_t, const color_t);
 
 void mfree(int n, ...);
 uint8_t* ltoh(uint8_t*, int);

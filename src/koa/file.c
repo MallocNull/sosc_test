@@ -158,26 +158,62 @@ int bmp_reload_chunk(bmp_t* bmp, int x, int y, int width, int height) {
 
     uint8_t buffer[4];
     for(int ay = 0; ay < height; ++ay) {
-        fseek(fp,
-              data->header_size
-              + (data->width * (data->height - (y + ay) - 1) * data->bytepp)
-              + x * data->bytepp,
-              SEEK_SET
+        fseek(
+            fp,
+            data->header_size
+                + (data->width * (data->height - (y + ay) - 1) * data->bytepp)
+                + x * data->bytepp,
+            SEEK_SET
         );
 
         for(int ax = 0; ax < width; ++ax) {
             fread(buffer, 1, data->bytepp, fp);
 
-            color_t* px = &bmp->pixels[ay][ax];
-            px->b = buffer[0];
-            px->g = buffer[1];
-            px->r = buffer[2];
-            px->a = 0xFF;
+            bmp->pixels[ay][ax][_B_] = buffer[0];
+            bmp->pixels[ay][ax][_G_] = buffer[1];
+            bmp->pixels[ay][ax][_R_] = buffer[2];
+            bmp->pixels[ay][ax][_A_] = 0xFF;
         }
     }
 
     fclose(fp);
     return 1;
+}
+
+int _bmp_comp_cnt(int col) {
+    int cnt = 0;
+    for(int i = 0; i < KOA_COMPONENTS; ++i)
+        cnt += (col >> i) & 0x1;
+
+    return cnt;
+}
+
+uint8_t* bmp_gl_data(bmp_t* bmp, int col) {
+    float* out = malloc(bmp_gl_data_size(bmp, col));
+    bmp_gl_data_out(bmp, out, col);
+    return out;
+}
+
+void bmp_gl_data_out(bmp_t* bmp, uint8_t* out, int col) {
+    const int comps = _bmp_comp_cnt(col);
+    for(uint32_t y = 0; y < bmp->height; ++y) {
+        for(uint32_t x = 0; x < bmp->width; ++x) {
+            int at = 0;
+            for(int i = 0; i < KOA_COMPONENTS; ++i) {
+                if(!((col >> i) & 0x1))
+                    continue;
+
+                out[y * bmp->width * comps + x * comps + at] =
+                    bmp->pixels[y][x][i];
+                ++at;
+            }
+        }
+    }
+}
+
+uint32_t bmp_gl_data_size(bmp_t* bmp, int col) {
+    return sizeof(uint8_t) * _bmp_comp_cnt(col)
+           * bmp->width * bmp->height;
 }
 
 void bmp_discard_pixels(bmp_t* bmp) {

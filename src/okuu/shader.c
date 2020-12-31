@@ -31,7 +31,7 @@ int shader_layout(shader_t* shader, int count, ...) {
     return 0;
 }
 
-int shader_source(shader_t* shader, int files, ...) {
+int shader_source(shader_t* shader, int is_src, int files, ...) {
     if(shader->loaded)
         return -1;
 
@@ -42,16 +42,23 @@ int shader_source(shader_t* shader, int files, ...) {
     va_list args;
     va_start(args, files);
     for(int i = 0; i < files; ++i) {
-        const char* file_name = va_arg(args, const char*);
-        char* source = file_read(file_name);
-        if(source == NULL) {
-            failed = 1;
-            break;
-        }
+        char* file_name = "INLINE";
+        char* source = NULL;
+
+        if(!is_src) {
+            file_name = va_arg(args, char*);
+            source = file_read(file_name);
+            if(source == NULL) {
+                failed = 1;
+                break;
+            }
+        } else
+            source = va_arg(args, char*);
 
         shaders[i] = glCreateShader(va_arg(args, GLuint));
         if(shaders[i] == 0) {
-            free(source);
+            if(!is_src)
+                free(source);
             failed = 1;
             break;
         }
@@ -68,13 +75,15 @@ int shader_source(shader_t* shader, int files, ...) {
             fprintf(__STDERR, "[ERROR] (%s (COMPILER)) %s\n", file_name, msg);
             free(msg);
 
-            free(source);
+            if(!is_src)
+                free(source);
             failed = 1;
             break;
         }
 
         glAttachShader(shader->program, shaders[i]);
-        free(source);
+        if(!is_src)
+            free(source);
     }
     va_end(args);
 
@@ -149,8 +158,10 @@ shader_t* shader_active() {
 }
 
 void shader_start(shader_t* shader) {
-    glUseProgram(shader->program);
-    _active = shader;
+    if(_active == NULL || _active->program != shader->program) {
+        glUseProgram(shader->program);
+        _active = shader;
+    }
 }
 
 void shader_stop() {

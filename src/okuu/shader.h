@@ -12,6 +12,9 @@
 #define _SHADER shader_active()
 #define _ATTR(I) shader_attr(_SHADER, I)
 
+#define SHADER_FILE 0
+#define SHADER_SRC  1
+
 typedef char layout_name_t[256];
 
 typedef struct {
@@ -27,7 +30,7 @@ typedef struct {
 shader_t* shader_create(const char*);
 
 int shader_layout(shader_t*, int, ...);
-int shader_source(shader_t*, int, ...);
+int shader_source(shader_t*, int, int, ...);
 int shader_attribs(shader_t*, int, ...);
 GLint shader_attr(const shader_t*, int);
 

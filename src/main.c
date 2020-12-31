@@ -11,6 +11,7 @@
 #include "okuu/mesh.h"
 #include "okuu/shader.h"
 #include "okuu/terrain.h"
+#include "okuu/font.h"
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
@@ -20,7 +21,11 @@ struct {
     SDL_GLContext ctx;
     const uint8_t* keys;
     int mode, running;
+    int mouse[3];
 
+    vec2 tlocs[10];
+    font_t* scape;
+    text_t* text;
     mesh_t* monkey;
     terrain_t* map;
 } _g;
@@ -39,15 +44,37 @@ int init();
 void deinit();
 void run();
 
+void reset_text_locs() {
+    for(int i = 0; i < 10; ++i) {
+        _g.tlocs[i][0] = rand() % (WINDOW_WIDTH / 2);
+        _g.tlocs[i][1] = rand() % WINDOW_HEIGHT;
+    }
+}
+
 int main(int argc, char* argv[]) {
     if(init() < 0)
         return -1;
 
-    _g.monkey = mesh_load("data/player.rbm");
+    font_init_subsystem(_g.window);
+
+    _g.scape = font_load(
+        "data/fonts/scape.bmp",
+        "data/fonts/scape.dat",
+        GL_NEAREST
+    );
+    font_set_default(_g.scape);
+
+    _g.text = text_create(NULL);
+    text_set(_g.text, "flashwave is cool !!!");
+    text_set_size(_g.text, 32);
+    text_set_rgb_hex(_g.text, 0x55007e);
+    reset_text_locs();
+
+    _g.monkey = mesh_load("data/models/player.rbm");
 
     _g.map = terrain_load(
-        "data/map-heights.bmp",
-        "data/map-colors.bmp",
+        "data/terrains/map-heights.bmp",
+        "data/terrains/map-colors.bmp",
         10, 10
     );
 
@@ -55,9 +82,9 @@ int main(int argc, char* argv[]) {
     shader_layout(_s_def.shader, 4,
         "vertex", "texuv", "normal", "color"
     );
-    shader_source(_s_def.shader, 2,
-        "shaders/test.vert", GL_VERTEX_SHADER,
-        "shaders/test.frag", GL_FRAGMENT_SHADER
+    shader_source(_s_def.shader, SHADER_FILE, 2,
+        "data/shaders/test.vert", GL_VERTEX_SHADER,
+        "data/shaders/test.frag", GL_FRAGMENT_SHADER
     );
     shader_attribs(_s_def.shader, 3,
         "model", "view", "projection"
@@ -81,6 +108,7 @@ void run() {
     if(init) {
         //glm_rotate_make(model, glm_rad(90), (vec3){ 0.f, -1.f, 0.f });
         glm_mat4_identity(model);
+
         glm_mat4_identity(map);
 
         glm_mat4_identity(view);
@@ -117,12 +145,14 @@ void run() {
         view
     );
 
+    for(int i = 0; i < 10; ++i) {
+        text_move(_g.text, _g.tlocs[i]);
+        text_render(_g.text);
+    }
+
     shader_start(_s_def.shader); {
         glUniformMatrix4fv(_ATTR(DEF_VIEW), 1, GL_FALSE, (float*)view);
 
-        /*mesh_bind(_g.monkey);
-        mesh_render(_g.monkey);
-        mesh_unbind();*/
         glm_translate_make(model, (vec3){-x, -(_g.map->heights[(int)y][(int)x] + 2.f), -y});
         glm_mat4_mul(model, map, model);
         glUniformMatrix4fv(_ATTR(DEF_MODEL), 1, GL_FALSE, (float*)model);
@@ -173,10 +203,41 @@ void run() {
         glm_translate_make(map, (vec3){__MAX(0, x - CHUNK_SIZE / 2), 0, __MAX(0, y - CHUNK_SIZE / 2)});
     }
 
+    if(_g.keys[SDL_SCANCODE_P])
+        reset_text_locs();
+
+    _g.mouse[2] = SDL_GetMouseState(&_g.mouse[0], &_g.mouse[1]);
+    if(_g.mouse[2] & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+
+    }
+
     SDL_Event ev;
     while(SDL_PollEvent(&ev)) {
         if(ev.type == SDL_QUIT)
             _g.running = 0;
+        else if(ev.type == SDL_WINDOWEVENT &&
+                ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+        {
+            glViewport(0, 0, ev.window.data1, ev.window.data2);
+            font_window_changed(_g.window);
+        }
+        /*else if(ev.type == SDL_MOUSEBUTTONDOWN) {
+            float mx = (float)ev.button.x / (float)WINDOW_WIDTH;
+            float my = (float)ev.button.y / (float)WINDOW_HEIGHT;
+            vec4 mouse = {mx * 2 - 1, (1 - my) * 2 - 1, -1.f, 1.f};
+            mat4 imat;
+
+            glm_mat4_inv(projection, imat);
+            glm_mat4_mulv(imat, mouse, mouse);
+            mouse[2] = -1.f;
+            mouse[3] = 0.f;
+
+            glm_mat4_inv(view, imat);
+            glm_mat4_mulv(imat, mouse, mouse);
+
+
+
+        }*/
     }
 }
 

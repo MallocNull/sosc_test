@@ -1,11 +1,11 @@
 #include "terrain.h"
 
-#define _HGT_AT(A, X, Y) (A->bmps[0]->pixels[Y][X].r / 10.f)
+#define _HGT_AT(A, X, Y) (A->bmps[0]->pixels[Y][X][_R_] / 10.f)
 #define _RWCOL_AT(A, X, Y) (A->bmps[1]->pixels[Y][X])
-#define _RCOL_AT(A, X, Y, C) (_RWCOL_AT(A, X, Y).C)
+#define _RCOL_AT(A, X, Y, C) (_RWCOL_AT(A, X, Y)[C])
 #define _COL_AT(A, X, Y, C) (_RCOL_AT(A, X, Y, C) / 255.f)
 #define _COL_EQ(A, X1, Y1, X2, Y2) \
-    (color_eqp(&A->bmps[1]->pixels[Y1][X1], &A->bmps[1]->pixels[Y2][X2]))
+    (color_eqp(A->bmps[1]->pixels[Y1][X1], A->bmps[1]->pixels[Y2][X2]))
 
 float _avg_hgt(terrain_t* map, int x, int y) {
     return
@@ -250,14 +250,12 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                     memcpy(data + at + 12, data + at + 3, 3 * sizeof(float));
                     memcpy(data + at + 24, data + at + 3, 3 * sizeof(float));
                     memcpy(data + at + 33, data + at + 3, 3 * sizeof(float));
-
-                    //_norm_smooth(data, x, y);
                     break;
                 case 3:
                     for(int j = 0; j < 12; ++j) {
-                        data[at + j * 3]     = _COL_AT(terrain, x, y, r);
-                        data[at + j * 3 + 1] = _COL_AT(terrain, x, y, g);
-                        data[at + j * 3 + 2] = _COL_AT(terrain, x, y, b);
+                        data[at + j * 3]     = _COL_AT(terrain, x, y, _R_);
+                        data[at + j * 3 + 1] = _COL_AT(terrain, x, y, _G_);
+                        data[at + j * 3 + 2] = _COL_AT(terrain, x, y, _B_);
                     }
 
                     const color_t path_colors[] = {
@@ -267,7 +265,7 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
 
                     int found = 0;
                     for(int j = 0; j < sizeof(path_colors) / sizeof(color_t); ++j) {
-                        if(color_eqp(&path_colors[j], &_RWCOL_AT(terrain, x, y))) {
+                        if(color_eqp(path_colors[j], _RWCOL_AT(terrain, x, y))) {
                             found = 1;
                             break;
                         }
@@ -301,48 +299,23 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                         {
                             data[at + j * 9] = _COL_AT(terrain,
                                 x + coords[j][0],
-                                y + coords[j][1], r
+                                y + coords[j][1], _R_
                             );
 
                             data[at + j * 9 + 1] = _COL_AT(terrain,
                                 x + coords[j][0],
-                                y + coords[j][1], g
+                                y + coords[j][1], _G_
                             );
 
                             data[at + j * 9 + 2] = _COL_AT(terrain,
                                 x + coords[j][0],
-                                y + coords[j][1], b
+                                y + coords[j][1], _B_
                             );
 
                             memcpy(data + at + j * 9 + 3, data + at + j * 9, 3 * sizeof(float));
                             memcpy(data + at + j * 9 + 6, data + at + j * 9, 3 * sizeof(float));
                         }
                     }
-
-                    /*
-                    for(int j = 0; j < 4; ++j) {
-                        if(_COL_EQ(terrain,
-                            x + coords[j][0],
-                            y + coords[j][1],
-                            x + coords[j][2],
-                            y + coords[j][3]))
-                        {
-                            for(int k = 0; k < 6; ++k) {
-                                data[at + ((k * 3 + j * 9) % 36)] =
-                                    _COL_AT(terrain,
-                                            x + coords[j][0],
-                                            y + coords[j][1], r);
-                                data[at + ((k * 3 + j * 9 + 1) % 36)] =
-                                    _COL_AT(terrain,
-                                            x + coords[j][0],
-                                            y + coords[j][1], g);
-                                data[at + ((k * 3 + j * 9 + 2) % 36)] =
-                                    _COL_AT(terrain,
-                                            x + coords[j][0],
-                                            y + coords[j][1], b);
-                            }
-                        }
-                    }*/
 
                     break;
                 }
