@@ -9,8 +9,9 @@ typedef struct {
 } _tri_t;
 
 int _populate_pts
-    (_pt_t* data, FILE* fp, uint32_t length, int width)
+    (_pt_t* data, obb_t* obb, FILE* fp, uint32_t length, int width)
 {
+    obb_clear(obb);
     uint8_t buffer[4];
     int chk;
 
@@ -22,6 +23,8 @@ int _populate_pts
 
             data[i].data[j] = *(float*)ltoh(buffer, 4);
         }
+
+        obb_parse_point(obb, data[i].data);
     }
 
     return 1;
@@ -84,12 +87,13 @@ mesh_t* mesh_load(const char* file) {
     _tri_t *faces = malloc(sizeof(_tri_t) * counts[FACE_CNT]);
 
     int chk = 1;
+    obb_t obb;
 
-    chk &= _populate_pts(verts, fp, counts[VERT_CNT], 3);
+    chk &= _populate_pts(verts, &obb, fp, counts[VERT_CNT], 3);
     if(counts[TEX_CNT] > 0)
-        chk &= _populate_pts(texs, fp, counts[TEX_CNT], 2);
+        chk &= _populate_pts(texs, NULL, fp, counts[TEX_CNT], 2);
     if(counts[NORM_CNT] > 0)
-        chk &= _populate_pts(norms, fp, counts[NORM_CNT], 3);
+        chk &= _populate_pts(norms, NULL, fp, counts[NORM_CNT], 3);
 
     int index_length = counts[FACE_CNT] <= 0xFFFF ? 2 : 4;
     for(uint32_t i = 0; i < counts[FACE_CNT]; ++i) {
@@ -201,6 +205,7 @@ mesh_t* mesh_load(const char* file) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     mesh->tri_cnt = counts[FACE_CNT];
+    mesh->obb = obb;
     return mesh;
 }
 

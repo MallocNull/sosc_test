@@ -23,7 +23,6 @@ struct {
     int mode, running;
     int mouse[3];
 
-    vec2 tlocs[10];
     font_t* scape;
     text_t* text;
     mesh_t* monkey;
@@ -44,13 +43,6 @@ int init();
 void deinit();
 void run();
 
-void reset_text_locs() {
-    for(int i = 0; i < 10; ++i) {
-        _g.tlocs[i][0] = rand() % (WINDOW_WIDTH / 2);
-        _g.tlocs[i][1] = rand() % WINDOW_HEIGHT;
-    }
-}
-
 int main(int argc, char* argv[]) {
     if(init() < 0)
         return -1;
@@ -58,23 +50,27 @@ int main(int argc, char* argv[]) {
     font_init_subsystem(_g.window);
 
     _g.scape = font_load(
-        "data/fonts/scape.bmp",
-        "data/fonts/scape.dat",
+        "data/fonts/scape2.bmp",
+        "data/fonts/scape2.dat",
         GL_NEAREST
     );
     font_set_default(_g.scape);
 
     _g.text = text_create(NULL);
-    text_set(_g.text, "flashwave is cool !!!");
-    text_set_size(_g.text, 32);
-    text_set_rgb_hex(_g.text, 0x55007e);
-    reset_text_locs();
+    //text_set(_g.text, "Welcome to Rune2006");
+    text_set_size(_g.text, 16);
+    text_set_rgb_hex(_g.text, 0xffff00);
 
     _g.monkey = mesh_load("data/models/player.rbm");
 
+    color_t path_colors[] = {
+        {0x60, 0x60, 0x60, 0xFF},
+        {0x9C, 0x00, 0x0E, 0xFF}
+    };
     _g.map = terrain_load(
         "data/terrains/map-heights.bmp",
         "data/terrains/map-colors.bmp",
+        path_colors, sizeof(path_colors) / sizeof(color_t),
         10, 10
     );
 
@@ -83,8 +79,8 @@ int main(int argc, char* argv[]) {
         "vertex", "texuv", "normal", "color"
     );
     shader_source(_s_def.shader, SHADER_FILE, 2,
-        "data/shaders/test.vert", GL_VERTEX_SHADER,
-        "data/shaders/test.frag", GL_FRAGMENT_SHADER
+        "data/shaders/terrain.vert", GL_VERTEX_SHADER,
+        "data/shaders/terrain.frag", GL_FRAGMENT_SHADER
     );
     shader_attribs(_s_def.shader, 3,
         "model", "view", "projection"
@@ -100,13 +96,18 @@ int main(int argc, char* argv[]) {
 }
 
 void run() {
-    static mat4 model, map, view, projection;
+    static mat4 model, map, view, projection, mario;
+    static vec3 center, eye, pick;
     static float rot_up = 45, rot_around = 45;
     static float x = 0, y = 0;
+    static char debug[256] = "";
 
     static int init = 1;
     if(init) {
         //glm_rotate_make(model, glm_rad(90), (vec3){ 0.f, -1.f, 0.f });
+        //glm_translate_make(mario, (vec3){ 4.f, 4.f, 4.f });
+        glm_scale_make(mario, (vec3){ 3.f, 3.f, 3.f });
+
         glm_mat4_identity(model);
 
         glm_mat4_identity(map);
@@ -133,36 +134,42 @@ void run() {
     glClearColor(0.f, 0.f, 0.5f, 0.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    center[0] = -x;
+    center[1] = -(terrain_height(_g.map, x, y) + 2.f);
+    center[2] = -y;
+
     float radius = 4.f + 4.f * (rot_up / 90.f);
+    eye[0] = cos(glm_rad(rot_up)) * radius * cos(glm_rad(rot_around));
+    eye[1] = radius * sin(glm_rad(rot_up));
+    eye[2] = cos(glm_rad(rot_up)) * radius * sin(glm_rad(rot_around));
+
     glm_lookat(
-        (vec3){
-            cos(glm_rad(rot_up)) * radius * cos(glm_rad(rot_around)),
-            radius * sin(glm_rad(rot_up)),
-            cos(glm_rad(rot_up)) * radius * sin(glm_rad(rot_around))
-        },
+        eye,
         (vec3){0.f, 0.f, 0.f},
         (vec3){0.f, 1.f, 0.f},
         view
     );
 
-    for(int i = 0; i < 10; ++i) {
-        text_move(_g.text, _g.tlocs[i]);
-        text_render(_g.text);
-    }
+    glm_translate(view, center);
+    glm_vec3_inv(center);
+
+    text_set_rgb_hex(_g.text, 0xffff00);
+    text_shadow_xy(_g.text, 1, 1);
 
     shader_start(_s_def.shader); {
         glUniformMatrix4fv(_ATTR(DEF_VIEW), 1, GL_FALSE, (float*)view);
 
-        glm_translate_make(model, (vec3){-x, -(_g.map->heights[(int)y][(int)x] + 2.f), -y});
-        glm_mat4_mul(model, map, model);
-        glUniformMatrix4fv(_ATTR(DEF_MODEL), 1, GL_FALSE, (float*)model);
+        glUniformMatrix4fv(_ATTR(DEF_MODEL), 1, GL_FALSE, (float*)map);
 
         glBindVertexArray(_g.map->vao);
         glDrawArrays(GL_TRIANGLES, 0, _g.map->tri_cnt * 3);
+
+        glUniformMatrix4fv(_ATTR(DEF_MODEL), 1, GL_FALSE, (float*)mario);
+        mesh_bind(_g.monkey);
+        mesh_render(_g.monkey);
+
         glBindVertexArray(0);
     } shader_stop();
-
-    SDL_GL_SwapWindow(_g.window);
 
     SDL_PumpEvents();
 
@@ -198,17 +205,65 @@ void run() {
     else if(_g.keys[SDL_SCANCODE_A])
         y -= .25;
 
-    if(_g.keys[SDL_SCANCODE_SPACE]) {
+    //if(_g.keys[SDL_SCANCODE_SPACE]) {
         terrain_move(_g.map, x, y);
-        glm_translate_make(map, (vec3){__MAX(0, x - CHUNK_SIZE / 2), 0, __MAX(0, y - CHUNK_SIZE / 2)});
-    }
-
-    if(_g.keys[SDL_SCANCODE_P])
-        reset_text_locs();
+        glm_translate_make(map, (vec3){_g.map->top_x, 0, _g.map->top_y});
+    //}
 
     _g.mouse[2] = SDL_GetMouseState(&_g.mouse[0], &_g.mouse[1]);
-    if(_g.mouse[2] & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+    float mx = (float)_g.mouse[0] / (float)WINDOW_WIDTH;
+    float my = (float)_g.mouse[1] / (float)WINDOW_HEIGHT;
+    vec4 mouse = {mx * 2 - 1, (1 - my) * 2 - 1, -1.f, 1.f};
+    mat4 imat;
 
+    sprintf(debug, "NDC (%f, %f, %f, %f)", mouse[0], mouse[1], mouse[2], mouse[3]);
+    text_set(_g.text, debug);
+    text_move_xy(_g.text, 4, 4);
+    text_render(_g.text);
+
+    glm_mat4_inv(projection, imat);
+    glm_mat4_mulv(imat, mouse, mouse);
+    mouse[2] = -1.f;
+    mouse[3] = 0.f;
+
+    sprintf(debug, "EYE (%f, %f, %f, %f)", mouse[0], mouse[1], mouse[2], mouse[3]);
+    text_set(_g.text, debug);
+    text_move_xy(_g.text, 4, 24);
+    text_render(_g.text);
+
+    glm_mat4_inv(view, imat);
+    glm_mat4_mulv(imat, mouse, mouse);
+    glm_vec4_normalize(mouse);
+
+    sprintf(debug, "WORLD (%f, %f, %f, %f)", mouse[0], mouse[1], mouse[2], mouse[3]);
+    text_set(_g.text, debug);
+    text_move_xy(_g.text, 4, 44);
+    text_render(_g.text);
+
+    vec3 pcam;
+    glm_vec3_copy(center, pcam);
+
+    sprintf(debug, "PL1LOC (%f, %f, %f)", pcam[0], pcam[1], pcam[2]);
+    text_set(_g.text, debug);
+    text_move_xy(_g.text, 4, 64);
+    text_render(_g.text);
+
+    glm_vec3_add(eye, pcam, pcam);
+
+    sprintf(debug, "CAMLOC (%f, %f, %f)", pcam[0], pcam[1], pcam[2]);
+    text_set(_g.text, debug);
+    text_move_xy(_g.text, 4, 84);
+    text_render(_g.text);
+
+    if(_g.mouse[2] & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+        if(terrain_pick(_g.map, (vec3){ mouse[0], mouse[1], mouse[2] }, pcam, pick)) {
+            //glm_scale_make(mario, (vec3){ 3.f, 3.f, 3.f });
+            pick[0] = (int)pick[0] + 0.5f;
+            pick[1] += 1.f;
+            pick[2] = (int)pick[2] + 0.5f;
+            glm_translate_make(mario, pick);
+            glm_scale(mario, (vec3){2.f, 2.f, 2.f});
+        }
     }
 
     SDL_Event ev;
@@ -239,6 +294,8 @@ void run() {
 
         }*/
     }
+
+    SDL_GL_SwapWindow(_g.window);
 }
 
 int init() {

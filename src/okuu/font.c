@@ -179,6 +179,8 @@ text_t* text_create(font_t* font) {
     text->vert_inv  =
     text->texuv_inv = 1;
 
+    glm_vec2_fill(text->shadow, 0.f);
+
     glm_mat4_identity(text->trans_mat);
     glGenVertexArrays(1, &text->vao);
     glGenBuffers(2, text->buffers);
@@ -269,18 +271,27 @@ void text_set_rgba_hex(text_t* text, uint32_t color) {
 }
 
 void text_move(text_t* text, vec2 coords) {
-    vec3 coords3 = { coords[0], coords[1], 0.f };
-    glm_translate_make(text->trans_mat, coords3);
+    glm_translate_make(
+        text->trans_mat,
+        (vec3){ coords[0], coords[1], 0.f }
+    );
 }
 
 void text_move_xy(text_t* text, float x, float y) {
-    vec2 coords = { x, y };
-    text_move(text, coords);
+    text_move(text, (vec2){ x, y });
 }
 
 void text_wrap(text_t* text, uint32_t wrap) {
     text->wrap = wrap;
     text->vert_inv = 1;
+}
+
+void text_shadow(text_t* text, vec2 offset) {
+    glm_vec2_copy(offset, text->shadow);
+}
+
+void text_shadow_xy(text_t* text, float x, float y) {
+    text_shadow(text, (vec2){ x, y });
 }
 
 void text_redraw(text_t* text) {
@@ -391,8 +402,33 @@ void text_redraw(text_t* text) {
 }
 
 void text_render(text_t* text) {
+    const vec4 shadow = { 0.f, 0.f, 0.f, 1.f };
+    mat4 trans_shadow;
+
     text_redraw(text);
     shader_start(_ss.shader);
+
+    glActiveTexture(GL_TEXTURE0);
+    font_bind(text->font);
+    glBindVertexArray(text->vao);
+
+    if(text->shadow[0] != 0 || text->shadow[1] != 0) {
+        glm_translate_make(trans_shadow,
+                           (vec3){ text->shadow[0], text->shadow[1], -0.1f });
+        glm_mat4_mul(trans_shadow, text->trans_mat, trans_shadow);
+
+        glUniformMatrix4fv(
+            _ATTR(FONT_TRANS),
+            1, GL_FALSE,
+            (float*)trans_shadow
+        );
+        glUniform4fv(
+            _ATTR(FONT_COLOR), 1,
+            (float*)shadow
+        );
+
+        glDrawArrays(GL_TRIANGLES, 0, text->tri_cnt * 3);
+    }
 
     glUniformMatrix4fv(
         _ATTR(FONT_TRANS),
@@ -403,10 +439,7 @@ void text_render(text_t* text) {
         _ATTR(FONT_COLOR), 1,
         (float*)text->color
     );
-    glActiveTexture(GL_TEXTURE0);
 
-    font_bind(text->font);
-    glBindVertexArray(text->vao);
     glDrawArrays(GL_TRIANGLES, 0, text->tri_cnt * 3);
 }
 

@@ -11,11 +11,13 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "obb.h"
 #include "koa/etc.h"
 
 typedef struct {
     GLuint buffers[3], vao;
     uint32_t tri_cnt;
+    obb_t obb;
 } mesh_t;
 
 mesh_t* mesh_load(const char*);

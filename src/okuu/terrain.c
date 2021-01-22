@@ -1,5 +1,7 @@
 #include "terrain.h"
 
+#define _TOP(A) (__MAX(0, A - CHUNK_SIZE / 2))
+
 #define _HGT_AT(A, X, Y) (A->bmps[0]->pixels[Y][X][_R_] / 10.f)
 #define _RWCOL_AT(A, X, Y) (A->bmps[1]->pixels[Y][X])
 #define _RCOL_AT(A, X, Y, C) (_RWCOL_AT(A, X, Y)[C])
@@ -16,10 +18,11 @@ float _avg_hgt(terrain_t* map, int x, int y) {
 
 terrain_t* terrain_load
     (const char* heights, const char* colors,
+     const color_t* paths, int path_cnt,
      int center_x, int center_y)
 {
-    int top_x = __MAX(0, center_x - CHUNK_SIZE / 2),
-        top_y = __MAX(0, center_y - CHUNK_SIZE / 2);
+    int top_x = _TOP(center_x),
+        top_y = _TOP(center_y);
 
     bmp_t* heights_bmp =
         bmp_load_chunk(heights, top_x, top_y, CHUNK_SIZE, CHUNK_SIZE);
@@ -36,41 +39,57 @@ terrain_t* terrain_load
     terrain_t* terrain = malloc(sizeof(terrain_t));
     terrain->bmps[0] = heights_bmp;
     terrain->bmps[1] = colors_bmp;
-    terrain->center_x = terrain->center_y = -1;
+    terrain->top_x = terrain->top_y = -1;
+
+    terrain->pick_dist = 20.f;
+    terrain->pick_depth = 10;
+
+    terrain->paths = NULL;
+    terrain->path_cnt = 0;
+
+    if(paths != NULL && path_cnt > 0) {
+        terrain->paths = malloc(sizeof(color_t) * path_cnt);
+        memcpy(terrain->paths, paths, sizeof(color_t) * path_cnt);
+        terrain->path_cnt = path_cnt;
+    }
 
     terrain_move(terrain, center_x, center_y);
     return terrain;
 }
 
 void terrain_move(terrain_t* terrain, int center_x, int center_y) {
-    int new_terrain = terrain->center_x == -1 || terrain->center_y == -1;
+    int new_terrain =
+        terrain->top_x == -1
+     || terrain->top_y == -1;
+
+    terrain->top_x = _TOP(center_x);
+    terrain->top_y = _TOP(center_y);
 
     if(new_terrain) {
         glGenVertexArrays(1, &terrain->vao);
         glGenBuffers(TERR_BUFFS, terrain->buffers);
     } else {
-        int top_x = __MAX(0, center_x - CHUNK_SIZE / 2),
-            top_y = __MAX(0, center_y - CHUNK_SIZE / 2);
-
         bmp_reload_chunk
-            (terrain->bmps[0], top_x, top_y, CHUNK_SIZE, CHUNK_SIZE);
+            (terrain->bmps[0], terrain->top_x, terrain->top_y,
+             CHUNK_SIZE, CHUNK_SIZE);
         bmp_reload_chunk
-            (terrain->bmps[1], top_x, top_y, CHUNK_SIZE, CHUNK_SIZE);
+            (terrain->bmps[1], terrain->top_x, terrain->top_y,
+             CHUNK_SIZE, CHUNK_SIZE);
     }
 
-    terrain->center_x = center_x;
-    terrain->center_y = center_y;
+    terrain->width = terrain->bmps[0]->width;
+    terrain->height = terrain->bmps[0]->height;
 
     const int data_length = 12 * 3 * (CHUNK_SIZE - 1) * (CHUNK_SIZE - 1);
-    terrain->tri_cnt = data_length / 3;
+    terrain->tri_cnt = 4 * (terrain->width - 1) * (terrain->height - 1);
     float data[data_length];
-    vec3 dir1, dir2, norm1, norm2, norm3;
+    vec3 dir1, dir2, norm;
 
     for(int i = 0; i < TERR_BUFFS; ++i) {
         int cnt = i == 1 ? 2 : 3;
-        for(int y = 0; y < CHUNK_SIZE - 1; ++y) {
-            for(int x = 0; x < CHUNK_SIZE - 1; ++x) {
-                int at = (y * (CHUNK_SIZE - 1) * 12 * cnt) + (x * 12 * cnt);
+        for(int y = 0; y < terrain->height - 1; ++y) {
+            for(int x = 0; x < terrain->width - 1; ++x) {
+                int at = (y * (terrain->width - 1) * 12 * cnt) + (x * 12 * cnt);
 
                 switch(i) {
                 case 0:
@@ -177,11 +196,11 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                         (vec3){ x + 1, _HGT_AT(terrain, x + 1, y), y },
                         dir2
                     );
-                    glm_vec3_cross(dir1, dir2, norm1);
-                    glm_vec3_normalize(norm1);
-                    memcpy(&data[at], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 3], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 6], norm1, 3 * sizeof(float));
+                    glm_vec3_cross(dir1, dir2, norm);
+                    glm_vec3_normalize(norm);
+                    memcpy(&data[at], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 3], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 6], norm, 3 * sizeof(float));
 
                     glm_vec3_sub(
                         (vec3){ x + 1, _HGT_AT(terrain, x + 1, y), y },
@@ -193,11 +212,11 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                         (vec3){ x + 1, _HGT_AT(terrain, x + 1, y + 1), y + 1 },
                         dir2
                     );
-                    glm_vec3_cross(dir1, dir2, norm1);
-                    glm_vec3_normalize(norm1);
-                    memcpy(&data[at + 9], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 12], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 15], norm1, 3 * sizeof(float));
+                    glm_vec3_cross(dir1, dir2, norm);
+                    glm_vec3_normalize(norm);
+                    memcpy(&data[at + 9], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 12], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 15], norm, 3 * sizeof(float));
 
                     glm_vec3_sub(
                         (vec3){ x + 1, _HGT_AT(terrain, x + 1, y + 1), y + 1 },
@@ -209,11 +228,11 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                         (vec3){ x, _HGT_AT(terrain, x, y + 1), y + 1 },
                         dir2
                     );
-                    glm_vec3_cross(dir1, dir2, norm1);
-                    glm_vec3_normalize(norm1);
-                    memcpy(&data[at + 18], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 21], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 24], norm1, 3 * sizeof(float));
+                    glm_vec3_cross(dir1, dir2, norm);
+                    glm_vec3_normalize(norm);
+                    memcpy(&data[at + 18], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 21], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 24], norm, 3 * sizeof(float));
 
                     glm_vec3_sub(
                         (vec3){ x, _HGT_AT(terrain, x, y), y },
@@ -225,11 +244,11 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                         (vec3){ x, _HGT_AT(terrain, x, y + 1), y + 1 },
                         dir2
                     );
-                    glm_vec3_cross(dir2, dir1, norm1);
-                    glm_vec3_normalize(norm1);
-                    memcpy(&data[at + 27], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 30], norm1, 3 * sizeof(float));
-                    memcpy(&data[at + 33], norm1, 3 * sizeof(float));
+                    glm_vec3_cross(dir2, dir1, norm);
+                    glm_vec3_normalize(norm);
+                    memcpy(&data[at + 27], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 30], norm, 3 * sizeof(float));
+                    memcpy(&data[at + 33], norm, 3 * sizeof(float));
 
                     glm_vec3_add(
                         data + at + 3,
@@ -258,14 +277,14 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
                         data[at + j * 3 + 2] = _COL_AT(terrain, x, y, _B_);
                     }
 
-                    const color_t path_colors[] = {
-                        {0x60, 0x60, 0x60, 0xFF},
-                        {0x9C, 0x00, 0x0E, 0xFF}
-                    };
+                    if(terrain->paths == NULL)
+                        continue;
 
                     int found = 0;
-                    for(int j = 0; j < sizeof(path_colors) / sizeof(color_t); ++j) {
-                        if(color_eqp(path_colors[j], _RWCOL_AT(terrain, x, y))) {
+                    for(int j = 0; j < terrain->path_cnt; ++j) {
+                        if(color_eqp(terrain->paths[j],
+                            _RWCOL_AT(terrain, x, y)))
+                        {
                             found = 1;
                             break;
                         }
@@ -339,13 +358,57 @@ void terrain_move(terrain_t* terrain, int center_x, int center_y) {
         } else {
             glBufferSubData(
                 GL_ARRAY_BUFFER, 0,
-                data_length * sizeof(float),
+                terrain->tri_cnt * 3 * 3 * sizeof(float),
                 data
             );
         }
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+float terrain_height(terrain_t* terrain, int x, int y) {
+    x -= terrain->top_x;
+    y -= terrain->top_y;
+
+    if(x < 0 || y < 0 || x >= terrain->width || y >= terrain->height)
+        return NAN;
+
+    return terrain->heights[y][x];
+}
+
+void terrain_pick_params(terrain_t* terrain, float distance, int depth) {
+    terrain->pick_dist = distance;
+    terrain->pick_depth = depth;
+}
+
+int terrain_pick
+    (terrain_t* terrain, vec3 ray, vec3 camera, vec3 out)
+{
+    int intersect = 0;
+    float t = terrain->pick_dist / 2.f, delta = t;
+
+    for(int i = 0; i < terrain->pick_depth; ++i) {
+        delta /= 2;
+        glm_vec3_scale(ray, t, out);
+        glm_vec3_add(out, camera, out);
+
+        float height = terrain_height(terrain, out[0], out[2]);
+        if(height == NAN)
+            t = t - delta;
+        else {
+            if(height < out[1])
+                t = t + delta;
+            else {
+                intersect = 1;
+                t = t - delta;
+            }
+
+            out[1] = height;
+        }
+    }
+
+    return intersect;
 }
 
 void terrain_unload(terrain_t* terrain) {

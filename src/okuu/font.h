@@ -35,6 +35,7 @@ typedef struct {
     uint32_t
         length, size,
         wrap, tri_cnt;
+    vec2 shadow;
 
     mat4 trans_mat;
     GLuint vao, buffers[2];
@@ -66,6 +67,9 @@ void text_set_rgba_hex(text_t*, uint32_t);
 void text_move(text_t*, vec2);
 void text_move_xy(text_t*, float, float);
 void text_wrap(text_t*, uint32_t);
+
+void text_shadow(text_t*, vec2);
+void text_shadow_xy(text_t*, float, float);
 
 void text_redraw(text_t*);
 void text_render(text_t*);
